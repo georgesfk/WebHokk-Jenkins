@@ -1,0 +1,60 @@
+pipeline {
+    agent any  // Exécuter le pipeline sur n'importe quel agent disponible
+
+    parameters {
+        // Option de sélection de la plateforme dans le job Jenkins
+        choice(name: 'PLATFORM', choices: ['linux', 'windows', 'mac'], description: 'Choisissez la plateforme de build')
+    }
+
+    stages {
+        stage('Checkout') {
+            steps {
+                // Clone le dépôt
+                git branch: 'main', url: 'https://github.com/ton-utilisateur/ton-repo.git'
+            }
+        }
+
+        stage('Build Plugin') {
+            steps {
+                script {
+                    // Détermine la plateforme et lance la construction du plugin pour Linux uniquement
+                    if (params.PLATFORM == 'linux') {
+                        buildPlugin(platforms: ['linux'])  // Appel à la fonction de construction pour Linux
+                    } else {
+                        echo "La plateforme ${params.PLATFORM} n'est pas supportée dans ce pipeline."
+                    }
+                }
+            }
+        }
+
+        stage('Test Plugin') {
+            steps {
+                // Exécute les tests spécifiques à Linux
+                sh './run-tests-linux.sh'
+            }
+        }
+
+        stage('Deploy Plugin') {
+            when {
+                branch 'main'  // Ne déploie que depuis la branche principale
+                expression { params.PLATFORM == 'linux' }  // Déploie uniquement pour la plateforme Linux
+            }
+            steps {
+                // Script de déploiement pour Linux
+                sh './deploy-linux.sh'
+            }
+        }
+    }
+
+    post {
+        always {
+            echo 'Pipeline terminé.'
+        }
+        success {
+            echo 'Build et déploiement réussis!'
+        }
+        failure {
+            echo 'Échec du build ou du déploiement.'
+        }
+    }
+}
